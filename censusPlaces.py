@@ -23,31 +23,68 @@ auth.set_access_token(access_token, access_token_secret)
 api = tweepy.API(auth)
 
 #step 1, get census area id by running shapely loop
+root = "../censusPlaces_restart_geo/nested_json/"
 def getId(lng,lat):
     point = Point(float(lng),float(lat))
     print point
-    with open("data/newYorkState_noWater.geojson") as f:
-        js =json.load(f)
-        for i in range(len(js['features'])):
-            feature = js['features'][i]            
-            uid = feature["properties"]["GEOID"]
+    with open(root+"states.geojson") as s:
+        states =json.load(s)
+        for i in range(len(states['features'])):
+            feature = states['features'][i]
+            state = feature["properties"]["STATEFP"]
             polygon = shape(feature['geometry'])
-           # print uid
             if polygon.contains(point)==True:
-                return uid
-				
-		
+                gid = state
+                #print gid
+                return getCounty(point,gid)
+
+
+def getCounty(point,gid):
+    with open(root+"states/counties_in_state_"+gid+".geojson") as c:
+        counties = json.load(c)
+        for j in range(len(counties["features"])):
+            countyFeature = counties["features"][j]
+            county = countyFeature["properties"]["COUNTYFP"]
+            polygon = shape(countyFeature["geometry"])
+            if polygon.contains(point)==True:
+                gid +="_"+county
+                #print gid
+                return getTract(point,gid)
+
+def getTract(point,gid):
+        with open(root+"counties/tracts_in_county_"+gid+".geojson") as t:
+            tracts = json.load(t)
+            for k in range(len(tracts["features"])):
+                tractFeature = tracts["features"][k]
+                tract = tractFeature["properties"]["TRACTCE"]
+                polygon = shape(tractFeature["geometry"])
+                if polygon.contains(point)==True:
+                    gid +="_"+tract
+                    #print gid
+                    return getBlockgroup(point,gid)
+
+def getBlockgroup(point,gid):
+    with open(root+"tracts/bgs_in_tract_"+gid+".geojson") as bg:
+        blockgroups = json.load(bg)
+        for l in range(len(blockgroups["features"])):
+            blockgroupFeature = blockgroups["features"][l]
+            blockgroup = blockgroupFeature["properties"]["GEOID"]
+            polygon = shape(blockgroupFeature["geometry"])
+            if polygon.contains(point)==True:
+                return blockgroup
+    
+    
 #step 2 get data of the census geo id from file
 def getData(bgid):
     #all data for area is loaded
-    dataByIdFile = open("data/R11891292_SL150.json")
+    dataByIdFile = open("data/R11897141_SL150.json")
     dataById =json.load(dataByIdFile)
     
     #data for this id is:
     currentData = dataById[bgid]
     
     #the selected categories are loaded
-    dataDictionarySelectedFile = open("data/R11891292_data_dictionary_selected.json")
+    dataDictionarySelectedFile = open("data/R11897141_SL150_selected.json")
     dataDictionarySelected = json.load(dataDictionarySelectedFile)
     
     tweetString = ""
@@ -55,9 +92,10 @@ def getData(bgid):
         keyTerm = dataDictionarySelected[key]
         value = currentData[key]
         if value!="" and value!="0":
-            tweetString += str(keyTerm)+":"+str(value)+"/"
-    print len(tweetString)
-    return tweetString
+            tweetString += str(value)+" "+str(keyTerm)+", "
+    tweetString[:-2]+"."
+    print len(tweetString[:-2]+".")
+    return tweetString[:-2]+"."
          
 
 
@@ -109,17 +147,14 @@ class StdOutListener(tweepy.StreamListener):
 
 if __name__ == '__main__':
     l = StdOutListener()
-    
-   #gid = getId(-73.960604,40.808534)
-   #print gid
-   #
-
+    #print getData(getId(-73.960604,40.808534))
     
     
     # There are different kinds of streams: public stream, user stream, multi-user streams
     # In this example follow #programming tag
     # For more details refer to https://dev.twitter.com/docs/streaming-apis
+    
     stream = tweepy.Stream(auth, l)
     stream.filter(track=['@censusPlaces'])
-    
+    #
 

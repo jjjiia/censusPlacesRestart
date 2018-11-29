@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset='utf-8' />
+    <title>Select features around a clicked point</title>
+    <meta name='viewport' content='initial-scale=1,maximum-scale=1,user-scalable=no' />
+    <script src='lib/d3.v4.min.js'></script>
+    <script src='https://api.tiles.mapbox.com/mapbox-gl-js/v0.51.0/mapbox-gl.js'></script>
+    <link href='https://api.tiles.mapbox.com/mapbox-gl-js/v0.51.0/mapbox-gl.css' rel='stylesheet' />
+    <style>
+        body { margin:0; padding:0; }
+        #map { position:absolute; top:0; bottom:0; width:100%; }
+        #info { position:absolute; top:0; bottom:0; width:100%; 
+            padding:10px;
+            max-height:200px; min-height: 100px; 
+            overflow:auto; background-color:rgba(255,255,255,.9);
+            border-bottom:1px solid black;}
+    </style>
+</head>
+<body>
+
+<div id='map'></div>
+<div id='info'>INFO</div>
+
+<script>
+mapboxgl.accessToken = 'pk.eyJ1IjoiampqaWlhMTIzIiwiYSI6ImNpbDQ0Z2s1OTN1N3R1eWtzNTVrd29lMDIifQ.gSWjNbBSpIFzDXU2X5YCiQ';
+var map = new mapboxgl.Map({
+    container: 'map',
+    style: 'mapbox://styles/jjjiia123/cjnyr10u90wdz2rrrrzfplq2s',
+    center: [-98, 38.88],
+    minZoom: 5,
+    zoom: 8
+});
+
+map.on('load', function() {
+    // Add the source to query. In this example we're using
+    // county polygons uploaded as vector tiles
+    map.addSource('counties', {
+        "type": "vector",
+        "url": "mapbox://mapbox.82pkq93d"
+    });
+
+    var mapLayers = map.getStyle().layers
+
+    map.on('click', function(e) {
+        // set bbox as 5px reactangle area around clicked point
+        var bbox = [[e.point.x - 2, e.point.y - 2], [e.point.x + 2, e.point.y + 2]];
+        
+        var featuresByLayer ={}
+        var displayText = ""
+        for(var j in mapLayers){
+            var layerName = mapLayers[j].id
+            if(layerName!="background" && layerName!="road"){
+                var feature =map.queryRenderedFeatures(bbox, { layers: [layerName] });
+                var featureId = feature[0].properties.GEOID
+                displayText+=layerName+": "+featureId +"<br/>"
+                featuresByLayer[layerName]=featureId
+            }
+        }
+        d3.select("#info").html(displayText)
+    });
+});
+</script>
+
+</body>
+</html>
